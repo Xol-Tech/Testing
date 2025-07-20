@@ -124,52 +124,56 @@ function renderScreen() {
 // --- LSL API Communication Functions (Re-introduced with debug messages) ---
 
 // Original function from your script - now with extensive debugging output
-function callLSLAPI(cmd, args) {
-    if (!lslApiUrl) {
-        writeLine("ERROR: lslApiUrl is EMPTY!", "red");
-        writeLine("Cannot call LSL API without a URL.", "red");
+// Function to call LSL API
+async function callLSLAPI(cmd, args) {
+    if (!window.lslApiUrl) {
+        logError("LSL API URL not set.");
         return;
     }
-    writeLine(`API Call: ${cmd} Args: ${args}`, "yellow");
-    let url = `${lslApiUrl}?cmd=${encodeURIComponent(cmd)}`;
-    if (args) {
-        url += `&args=${encodeURIComponent(args)}`;
-    }
-    writeLine(`Fetch URL: ${url.substring(0, COLS - 2)}`, "gray"); // Display URL, truncated
 
-    fetch(url)
-        .then(response => {
-            writeLine(`Fetch Status: ${response.status} ${response.statusText}`, "yellow");
-            if (!response.ok) {
-                // If response is not OK (e.g., 404, 500), try to read error message
-                return response.text().then(text => {
-                    throw new Error(`HTTP Error! Status: ${response.status}, Body: ${text.substring(0, COLS - 2)}`);
-                });
-            }
-            return response.json(); // Expecting JSON response
-        })
-        .then(data => {
-            writeLine("API Response (JSON):", "lime");
-            // Attempt to stringify and display part of the JSON response
-            try {
-                const dataString = JSON.stringify(data);
-                writeLine(dataString.substring(0, COLS), "lime"); // Display up to a full line
-            } catch (e) {
-                writeLine("Error stringifying JSON response.", "orange");
-            }
+    const url = `${window.lslApiUrl}?cmd=${encodeURIComponent(cmd)}${args ? `&args=${encodeURIComponent(args)}` : ''}`;
+    logInfo(`API Call: ${cmd} Args: ${args}`);
+    logDebug(`Fetch URL: ${url}`);
 
-            // Check if 'messages' array exists and is an array
-            if (data && data.messages && Array.isArray(data.messages)) {
-                writeLine(`Messages received: ${data.messages.length}`, "lime");
-                displayNextLSLMessage(data.messages); // Process and display the messages
-            } else {
-                writeLine("LSL Response missing 'messages' array or wrong format.", "orange");
-            }
-        })
-        .catch(error => {
-            writeLine(`FETCH ERROR: ${error.message.substring(0, COLS)}`, "red");
-            writeLine("Check LSL script/permissions.", "red");
+    try {
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json'); // Common for API calls
+        headers.append('Accept', 'application/json');       // Request JSON response
+        
+        // --- CRITICAL ADDITION ---
+        // This header is often expected by SL's HTTP-in for authenticated HTML_API calls.
+        // The LSL http_request event receives the recipient ID as `id`, but
+        // explicitly setting it here might help if the underlying server expects it.
+        // We'll extract the unique capability key from lslApiUrl, which serves as the recipient ID.
+        const urlParts = window.lslApiUrl.split('/');
+        const recipientId = urlParts[urlParts.length - 1]; // Get the last segment (the cap key)
+        if (recipientId) {
+            headers.append('X-SecondLife-Recipient-Id', recipientId);
+            logDebug(`Adding X-SecondLife-Recipient-Id: ${recipientId}`);
+        }
+        // --- END CRITICAL ADDITION ---
+
+        const response = await fetch(url, {
+            method: 'GET', // Explicitly state GET, though it's default
+            headers: headers // Attach the custom headers
         });
+
+        if (response.ok) {
+            const data = await response.json();
+            logSuccess(`Fetch Status: ${response.status} OK`);
+            logSuccess(`API Response (JSON): ${JSON.stringify(data)}`);
+            if (data && data.messages) {
+                logSuccess(`Messages received: ${data.messages.length}`);
+                data.messages.forEach(msg => logLSLMessage(msg));
+            }
+        } else {
+            const errorText = await response.text(); // Get raw error text
+            logError(`Fetch Status: ${response.status} ${response.statusText}`);
+            logError(`API Error Response: ${errorText}`);
+        }
+    } catch (error) {
+        logError(`Fetch Error: ${error.message}`);
+    }
 }
 
 // Function to display messages from LSL (will just print the first one for this test)
