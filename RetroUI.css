@@ -1,0 +1,29 @@
+/* RetroUI.css */
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Inter', monospace; /* Ensure this font is available or link a web font */
+}
+canvas {
+    background-color: #000;
+    border: 2px solid #0F0;
+    box-shadow: 0 0 10px #0F0;
+    border-radius: 8px;
+}
+/* Add a global style for the scrollbar if needed for a text input area */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #333;
+}
+::-webkit-scrollbar-thumb {
+    background: #0F0;
+    border-radius: 4px;
+}
