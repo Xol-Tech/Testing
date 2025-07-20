@@ -1,4 +1,11 @@
 /* RetroUI.css */
+@font-face {
+    font-family: 'MyRetroFont'; /* Choose a name for your font */
+    src: url('https://Xol-Tech.github.io/Testing/Fonts/ModernDOS8x16.ttf') format('truetype'); /* Include multiple formats for broader compatibility */
+    font-weight: normal;
+    font-style: normal;
+    /* You might also add font-display: swap; for better loading experience, though MOAP behavior can vary */
+}
 
 /* Ensure html takes up the full viewport height */
 html {
@@ -17,7 +24,8 @@ body {
     align-items: center;
     height: 100vh; /* This is good for body's height relative to viewport */
     width: 100%; /* Ensure body takes full width */
-    font-family: 'Inter', monospace;
+    /*font-family: 'Inter', monospace;*/
+    font-family: 'MyRetroFont', monospace;
 }
 
 canvas {
