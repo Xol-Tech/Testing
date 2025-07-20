@@ -6,7 +6,7 @@ const ROWS = 25;
 let CHAR_WIDTH;
 let CHAR_HEIGHT;
 let FONT_SIZE;
-const FONT_FAMILY = "monospace";
+const FONT_FAMILY = "monospace"; // Default fallback font
 // This variable is provided by the LSL script via window.lslApiUrl
 let lslApiUrl = window.lslApiUrl || ''; // Get the URL, default to empty string if not set
 
@@ -69,7 +69,8 @@ function setCanvasAndCharDimensions() {
     canvas.height = window.innerHeight; // Set canvas height to window's inner height
     CHAR_WIDTH = canvas.width / COLS;   // Calculate character width
     CHAR_HEIGHT = canvas.height / ROWS; // Calculate character height
-    FONT_SIZE = Math.max(1, CHAR_HEIGHT * 0.8); // Calculate font size, ensuring it's at least 1px
+    // FONT SIZE ADJUSTMENT: Shrunk by 10% (0.8 * 0.9 = 0.72)
+    FONT_SIZE = Math.max(1, CHAR_HEIGHT * 0.72); // Calculate font size, ensuring it's at least 1px
     ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`; // Set the drawing font
     ctx.textBaseline = "top"; // Align text to the top of the character cell
     logDebug(`Canvas dimensions set: ${canvas.width}x${canvas.height}`); // Log debug info
