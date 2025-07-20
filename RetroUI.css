@@ -25,7 +25,7 @@ body {
     height: 100vh; /* This is good for body's height relative to viewport */
     width: 100%; /* Ensure body takes full width */
     /*font-family: 'Inter', monospace;*/
-    font-family: 'MyRetroFont', monospace;
+    font-family: 'MyRetroFont';
 }
 
 canvas {
