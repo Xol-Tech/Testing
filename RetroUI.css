@@ -1,20 +1,35 @@
 /* RetroUI.css */
+
+/* Ensure html takes up the full viewport height */
+html {
+    height: 100%; /* ADDED: Ensures html element occupies full viewport height */
+    margin: 0;
+    padding: 0;
+}
+
 body {
     margin: 0;
+    padding: 0; /* ADDED: Ensure no default padding pushes content */
     overflow: hidden;
     background-color: #000;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    font-family: 'Inter', monospace; /* Ensure this font is available or link a web font */
+    height: 100vh; /* This is good for body's height relative to viewport */
+    width: 100%; /* ADDED: Ensure body takes full width */
+    font-family: 'Inter', monospace;
 }
+
 canvas {
+    display: block; /* ADDED: Removes extra space below inline elements */
+    width: 100%; /* ADDED: Canvas fills 100% of its parent's width */
+    height: 100%; /* ADDED: Canvas fills 100% of its parent's height */
     background-color: #000;
     border: 2px solid #0F0;
     box-shadow: 0 0 10px #0F0;
     border-radius: 8px;
 }
+
 /* Add a global style for the scrollbar if needed for a text input area */
 ::-webkit-scrollbar {
     width: 8px;
