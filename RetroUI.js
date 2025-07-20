@@ -1,5 +1,5 @@
-// RetroUI.js - Test 5: Core Terminal Rendering (Dynamic Dimensions + screenBuffer Text)
-// This script aims to display a functional-looking terminal with static, pre-defined messages.
+// RetroUI.js - Test 6: LSL API Integration with On-Screen Debugging
+// This script aims to integrate LSL API calls and display debug messages directly on the terminal.
 
 // --- Global variables (from your original script) ---
 const COLS = 80;
@@ -7,93 +7,76 @@ const ROWS = 25;
 let CHAR_WIDTH;
 let CHAR_HEIGHT;
 let FONT_SIZE;
-const FONT_FAMILY = "monospace"; // We know 'monospace' works from Test 4
+const FONT_FAMILY = "monospace";
 
-// This variable is provided by the LSL script, but will NOT be used in this test.
-let lslApiUrl = window.lslApiUrl || '';
+// This variable is provided by the LSL script via window.lslApiUrl
+let lslApiUrl = window.lslApiUrl || ''; // Get the URL, default to empty string if not set
 
 // --- Canvas and Context ---
 const canvas = document.getElementById("retroScreen");
 const ctx = canvas ? canvas.getContext("2d") : null;
 
-// --- Retro Terminal Core Logic (from your original script - re-introduced) ---
-let screenBuffer = []; // This array will hold the characters to display
-let cursorX = 0; // Current cursor column
-let cursorY = 0; // Current cursor row
-let frameCounter = 0; // Used for cursor blink, but not actively displaying cursor yet
-let acceptingInput = false; // Set to false to ensure no cursor is drawn for this test
+// --- Retro Terminal Core Logic (Confirmed working from Test 5) ---
+let screenBuffer = [];
+let cursorX = 0;
+let cursorY = 0;
+let frameCounter = 0;
+let acceptingInput = false; // Set to false to avoid drawing cursor for this test
 
-// Function to calculate and set canvas and character dimensions
 function setCanvasAndCharDimensions() {
-    if (!canvas || !ctx) return; // Exit if canvas or context isn't ready
-
-    // Set canvas dimensions to match the window (prim media size)
+    if (!canvas || !ctx) return;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
-    // Calculate individual character cell dimensions
     CHAR_WIDTH = canvas.width / COLS;
     CHAR_HEIGHT = canvas.height / ROWS;
-
-    // Calculate font size, ensuring it's at least 1px to be visible
     FONT_SIZE = Math.max(1, CHAR_HEIGHT * 0.8);
-
-    // Apply the font settings to the canvas context
     ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
-    ctx.textBaseline = "top"; // Important for consistent text positioning
+    ctx.textBaseline = "top";
 }
 
-// Function to initialize the screen buffer with empty spaces
 function initScreenBuffer() {
     for (let y = 0; y < ROWS; y++) {
-        screenBuffer[y] = []; // Create a row
+        screenBuffer[y] = [];
         for (let x = 0; x < COLS; x++) {
-            screenBuffer[y][x] = { char: " ", color: "#0F0" }; // Fill with default green spaces
+            screenBuffer[y][x] = { char: " ", color: "#0F0" };
         }
     }
 }
 
-// Function to print a single character to the buffer
 function printChar(char, x, y, color) {
-    // Basic bounds check
     if (y < 0 || y >= ROWS || x < 0 || x >= COLS) return;
     screenBuffer[y][x] = { char: char, color: color };
 }
 
-// Function to print a string to the buffer
 function printString(str, x, y, color) {
     for (let i = 0; i < str.length; i++) {
         printChar(str[i], x + i, y, color);
     }
 }
 
-// Function to write a full line of text, handling scrolling
 function writeLine(text, color) {
-    // Scroll the screen up if the cursor is at the last row
     if (cursorY >= ROWS) {
         scrollScreen();
-        cursorY = ROWS - 1; // Move cursor to the new last row after scrolling
+        cursorY = ROWS - 1;
     }
-    clearLine(cursorY); // Clear the line before writing new text
-    printString(text, 0, cursorY, color); // Print text starting at column 0
-    cursorY++; // Move cursor to the next line
-    cursorX = 0; // Reset cursor column
+    clearLine(cursorY);
+    // Truncate text if it's too long for the line to avoid visual overflow
+    const display_text = text.substring(0, COLS);
+    printString(display_text, 0, cursorY, color);
+    cursorY++;
+    cursorX = 0;
 }
 
-// Function to scroll the entire screen up by one line
 function scrollScreen() {
-    // Shift all lines up (line y takes content of line y+1)
     for (let y = 0; y < ROWS - 1; y++) {
         screenBuffer[y] = screenBuffer[y + 1];
     }
-    // Clear the last line to create a new empty line at the bottom
     screenBuffer[ROWS - 1] = [];
     for (let x = 0; x < COLS; x++) {
         screenBuffer[ROWS - 1][x] = { char: " ", color: "#0F0" };
     }
 }
 
-// Function to clear a specific line in the buffer
 function clearLine(y) {
     if (y >= 0 && y < ROWS) {
         for (let x = 0; x < COLS; x++) {
@@ -102,7 +85,6 @@ function clearLine(y) {
     }
 }
 
-// Function to clear the entire screen buffer and reset cursor
 function clearScreen() {
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
@@ -113,70 +95,140 @@ function clearScreen() {
     cursorY = 0;
 }
 
-// The main rendering loop, called repeatedly by requestAnimationFrame
 function renderScreen() {
     if (!ctx || !canvas) {
-        // If canvas/context aren't ready, reschedule the render and exit
         requestAnimationFrame(renderScreen);
         return;
     }
 
-    // 1. Clear the entire canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#000"; // Ensure background is black
+    ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 2. Re-apply font settings (important as context state can be reset or lost)
     ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
     ctx.textBaseline = "top";
 
-    // 3. Draw each character from the screen buffer
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
             const cell = screenBuffer[y][x];
-            // Only draw if the cell contains a character (not just a space)
             if (cell && cell.char !== " ") {
-                ctx.fillStyle = cell.color; // Set character color
-                // Draw text at calculated position based on cell grid
+                ctx.fillStyle = cell.color;
                 ctx.fillText(cell.char, x * CHAR_WIDTH, y * CHAR_HEIGHT);
             }
         }
     }
-
-    // (Cursor drawing logic commented out for this test)
-    // if (acceptingInput && frameCounter % 20 < 10) {
-    //     ctx.fillStyle = "#0F0";
-    //     ctx.fillRect(cursorX * CHAR_WIDTH, cursorY * CHAR_HEIGHT + CHAR_HEIGHT - 2, CHAR_WIDTH, 2);
-    // }
-
-    frameCounter++; // Increment frame counter
-    requestAnimationFrame(renderScreen); // Request next frame for continuous animation
+    frameCounter++;
+    requestAnimationFrame(renderScreen);
 }
 
-// --- Initialization when DOM is ready ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Initial setup steps
-    setCanvasAndCharDimensions(); // Calculate and set dimensions/font
-    initScreenBuffer(); // Initialize the empty screen buffer
+// --- LSL API Communication Functions (Re-introduced with debug messages) ---
 
-    // Populate the screenBuffer with static test messages
-    clearScreen(); // Ensure a clean slate
+// Original function from your script - now with extensive debugging output
+function callLSLAPI(cmd, args) {
+    if (!lslApiUrl) {
+        writeLine("ERROR: lslApiUrl is EMPTY!", "red");
+        writeLine("Cannot call LSL API without a URL.", "red");
+        return;
+    }
+    writeLine(`API Call: ${cmd} Args: ${args}`, "yellow");
+    let url = `${lslApiUrl}?cmd=${encodeURIComponent(cmd)}`;
+    if (args) {
+        url += `&args=${encodeURIComponent(args)}`;
+    }
+    writeLine(`Fetch URL: ${url.substring(0, COLS - 2)}`, "gray"); // Display URL, truncated
+
+    fetch(url)
+        .then(response => {
+            writeLine(`Fetch Status: ${response.status} ${response.statusText}`, "yellow");
+            if (!response.ok) {
+                // If response is not OK (e.g., 404, 500), try to read error message
+                return response.text().then(text => {
+                    throw new Error(`HTTP Error! Status: ${response.status}, Body: ${text.substring(0, COLS - 2)}`);
+                });
+            }
+            return response.json(); // Expecting JSON response
+        })
+        .then(data => {
+            writeLine("API Response (JSON):", "lime");
+            // Attempt to stringify and display part of the JSON response
+            try {
+                const dataString = JSON.stringify(data);
+                writeLine(dataString.substring(0, COLS), "lime"); // Display up to a full line
+            } catch (e) {
+                writeLine("Error stringifying JSON response.", "orange");
+            }
+
+            // Check if 'messages' array exists and is an array
+            if (data && data.messages && Array.isArray(data.messages)) {
+                writeLine(`Messages received: ${data.messages.length}`, "lime");
+                displayNextLSLMessage(data.messages); // Process and display the messages
+            } else {
+                writeLine("LSL Response missing 'messages' array or wrong format.", "orange");
+            }
+        })
+        .catch(error => {
+            writeLine(`FETCH ERROR: ${error.message.substring(0, COLS)}`, "red");
+            writeLine("Check LSL script/permissions.", "red");
+        });
+}
+
+// Function to display messages from LSL (will just print the first one for this test)
+function displayNextLSLMessage(messages) {
+    if (messages.length > 0) {
+        const message = messages[0];
+        writeLine(`LSL Msg: ${message.substring(0, COLS - 2)}`, "white"); // Display the message
+    } else {
+        writeLine("LSL reported no new messages.", "gray");
+    }
+    // For this test, we are not setting up continuous polling.
+    // In your full application, you might use setInterval here to poll regularly.
+    // setInterval(() => callLSLAPI("get_messages", ""), 5000); // Example for continuous polling
+}
+
+
+// Function to start the terminal demo (now includes initial LSL call)
+function startTerminalDemo() {
+    writeLine("Starting terminal demo...", "yellow");
+    // Make an initial call to the LSL API to get messages or initial data
+    callLSLAPI("get_messages", ""); // Replace "get_messages" and "" with your actual command/args
+    // If you want continuous polling, uncomment the setInterval in displayNextLSLMessage or here
+}
+
+
+// --- Initialization on DOMContentLoaded ---
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initial setup of canvas and screen buffer
+    setCanvasAndCharDimensions();
+    initScreenBuffer();
+
+    // 2. Display initial boot messages (from Test 5)
+    clearScreen();
     writeLine("Retro Computer v1.0 Booting...", "#0F0");
     writeLine("-----------------------------", "#0F0");
     writeLine("Second Life Viewer Test Mode Active.", "yellow");
-    writeLine("Canvas dimensions: " + canvas.width + "x" + canvas.height, "white"); // Display actual canvas size
-    writeLine("Char dimensions: " + CHAR_WIDTH.toFixed(2) + "x" + CHAR_HEIGHT.toFixed(2), "white"); // Display calculated char size
-    writeLine("Font size: " + FONT_SIZE.toFixed(2) + "px", "white"); // Display calculated font size
+    writeLine("Canvas dimensions: " + canvas.width + "x" + canvas.height, "white");
+    writeLine("Char dimensions: " + CHAR_WIDTH.toFixed(2) + "x" + CHAR_HEIGHT.toFixed(2), "white");
+    writeLine("Font size: " + FONT_SIZE.toFixed(2) + "px", "white");
     writeLine("Text rendering confirmed!", "lime");
-    writeLine("If you see this, the core terminal works!", "cyan");
-    writeLine("Awaiting LSL API integration...", "gray");
+    writeLine("Core terminal logic works!", "cyan");
 
-    // Start the rendering loop
+    // 3. Initiate LSL API communication debugging
+    writeLine("Checking LSL API URL...", "gray");
+    if (lslApiUrl) {
+        writeLine(`LSL API URL found: ${lslApiUrl.substring(0, COLS - 2)}`, "white");
+        startTerminalDemo(); // Proceed to start the demo which calls LSL API
+    } else {
+        writeLine("LSL API URL NOT found in window.lslApiUrl!", "red");
+        writeLine("Check LSL script's G_HTML_TEMPLATE.", "red");
+    }
+
+    // 4. Start the main rendering loop
     renderScreen();
 
-    // LSL API related calls (like startTerminalDemo) are intentionally OMITTED for this test phase.
-    // window.addEventListener("resize", () => { ... }); // Re-add this later, if dynamic resize needed.
+    // 5. Add window resize listener (important for dynamic UIs in SL)
+    window.addEventListener("resize", () => {
+        writeLine("Window resized. Recalculating dimensions.", "gray");
+        setCanvasAndCharDimensions();
+        // screenBuffer contents will be re-rendered by renderScreen loop
+    });
 });
-
-// All LSL API related functions (callLSLAPI, startTerminalDemo, displayNextLSLMessage, etc.)
-// are NOT included in this version to isolate the problem.
