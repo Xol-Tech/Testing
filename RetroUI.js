@@ -124,58 +124,63 @@ function renderScreen() {
 // --- LSL API Communication Functions (Re-introduced with debug messages) ---
 
 // Original function from your script - now with extensive debugging output
-// Function to call LSL API
-async function callLSLAPI(cmd, args) {
+// Function to call LSL API using XMLHttpRequest
+function callLSLAPI(cmd, args) {
     if (!window.lslApiUrl) {
         logError("LSL API URL not set.");
         return;
     }
 
     const url = `${window.lslApiUrl}?cmd=${encodeURIComponent(cmd)}${args ? `&args=${encodeURIComponent(args)}` : ''}`;
-    logInfo(`API Call: ${cmd} Args: ${args}`);
-    logDebug(`Fetch URL: ${url}`);
+    logInfo(`API Call (XHR): ${cmd} Args: ${args}`);
+    logDebug(`XHR URL: ${url}`);
 
-    try {
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json'); // Common for API calls
-        headers.append('Accept', 'application/json');       // Request JSON response
-        
-        // --- CRITICAL ADDITION ---
-        // This header is often expected by SL's HTTP-in for authenticated HTML_API calls.
-        // The LSL http_request event receives the recipient ID as `id`, but
-        // explicitly setting it here might help if the underlying server expects it.
-        // We'll extract the unique capability key from lslApiUrl, which serves as the recipient ID.
-        const urlParts = window.lslApiUrl.split('/');
-        const recipientId = urlParts[urlParts.length - 1]; // Get the last segment (the cap key)
-        if (recipientId) {
-            headers.append('X-SecondLife-Recipient-Id', recipientId);
-            logDebug(`Adding X-SecondLife-Recipient-Id: ${recipientId}`);
-        }
-        // --- END CRITICAL ADDITION ---
+    const xhr = new XMLHttpRequest();
 
-        const response = await fetch(url, {
-            method: 'GET', // Explicitly state GET, though it's default
-            headers: headers // Attach the custom headers
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            logSuccess(`Fetch Status: ${response.status} OK`);
-            logSuccess(`API Response (JSON): ${JSON.stringify(data)}`);
-            if (data && data.messages) {
-                logSuccess(`Messages received: ${data.messages.length}`);
-                data.messages.forEach(msg => logLSLMessage(msg));
+    // Event listener for when the request completes successfully
+    xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+            logSuccess(`XHR Status: ${xhr.status} OK`);
+            try {
+                const data = JSON.parse(xhr.responseText);
+                logSuccess(`API Response (JSON): ${JSON.stringify(data)}`);
+                if (data && data.messages) {
+                    logSuccess(`Messages received: ${data.messages.length}`);
+                    data.messages.forEach(msg => logLSLMessage(msg));
+                }
+            } catch (e) {
+                logError(`XHR JSON Parse Error: ${e.message}`);
+                logError(`XHR Raw Response: ${xhr.responseText}`);
             }
         } else {
-            const errorText = await response.text(); // Get raw error text
-            logError(`Fetch Status: ${response.status} ${response.statusText}`);
-            logError(`API Error Response: ${errorText}`);
+            logError(`XHR Status: ${xhr.status} ${xhr.statusText}`);
+            logError(`XHR Error Response: ${xhr.responseText}`);
         }
-    } catch (error) {
-        logError(`Fetch Error: ${error.message}`);
-    }
-}
+    };
 
+    // Event listener for network errors
+    xhr.onerror = function() {
+        logError("XHR Network Error: The request could not be completed.");
+    };
+
+    // Open the request
+    xhr.open('GET', url, true); // true for asynchronous
+
+    // Set headers - same as before
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Accept', 'application/json');
+
+    // Extract Recipient ID from URL path (the capability key)
+    const urlParts = window.lslApiUrl.split('/');
+    const recipientId = urlParts[urlParts.length - 1];
+    if (recipientId) {
+        xhr.setRequestHeader('X-SecondLife-Recipient-Id', recipientId);
+        logDebug(`Adding X-SecondLife-Recipient-Id (XHR): ${recipientId}`);
+    }
+
+    // Send the request
+    xhr.send();
+}
 // Function to display messages from LSL (will just print the first one for this test)
 function displayNextLSLMessage(messages) {
     if (messages.length > 0) {
